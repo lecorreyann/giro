@@ -10,6 +10,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
+      "backgroundColor": "#000000",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Pour suggérer des adresses près de vous.",
         "NSMicrophoneUsageDescription": "Pour dicter les adresses à la voix.",
@@ -56,7 +57,11 @@
           "image": "./assets/splash.png",
           "imageWidth": 480,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/splash.png",
+            "backgroundColor": "#000000"
+          }
         }
       ]
     ],
