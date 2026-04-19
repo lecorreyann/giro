@@ -219,6 +219,16 @@ export function RoutePlannerScreen() {
     Speech.stop();
   };
 
+  const onFinishTour = () => {
+    setLocked(false);
+    Speech.stop();
+    setResult(null);
+    setActiveLegIndex(0);
+    const nowStr = formatHHMM(roundUpToStep(new Date()));
+    setDepartureTime(nowStr);
+    setStops([newStop(addMinutesToHHMM(nowStr, 15))]);
+  };
+
   const handleOffRoute = async () => {
     if (!result || !userLocation) return;
     const remainingIds = result.orderedStopIds.slice(activeLegIndex);
@@ -316,6 +326,7 @@ export function RoutePlannerScreen() {
           setActiveLegIndex((i) => Math.min(result.legs.length - 1, i + 1))
         }
         onExit={onExitNavigation}
+        onFinish={onFinishTour}
         progress={navProjection}
         isOffRoute={isOffRoute}
         isRerouting={isRerouting}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RouteLeg, RouteResult, Stop } from '../types';
 import { colors, radii, space, type as T } from '../theme';
@@ -63,16 +63,8 @@ type ScheduleItem = {
 };
 
 function useSchedule(result: RouteResult, stops: Stop[]): { items: ScheduleItem[]; startAt: Date } {
-  const [tick, setTick] = useState(() => Date.now());
-  useEffect(() => {
-    const interval = setInterval(() => setTick(Date.now()), 30_000);
-    return () => clearInterval(interval);
-  }, []);
-
   return useMemo(() => {
-    const shiftMs = Math.max(0, tick - result.departureAt.getTime());
-    const startAt = new Date(result.departureAt.getTime() + shiftMs);
-
+    const startAt = new Date(result.departureAt);
     const items: ScheduleItem[] = [];
     let cursor = new Date(startAt);
 
@@ -82,7 +74,7 @@ function useSchedule(result: RouteResult, stops: Stop[]): { items: ScheduleItem[
       if (!stop) return;
       const systemIdx = stop.suggestedIndex ?? idx;
       const departureAt = new Date(cursor);
-      const arrivalAt = new Date(leg.arrivalAt.getTime() + shiftMs);
+      const arrivalAt = new Date(leg.arrivalAt);
       const requestedAt = parseRequestedTime(result.departureAt, stop.time);
       items.push({
         leg,
@@ -98,15 +90,15 @@ function useSchedule(result: RouteResult, stops: Stop[]): { items: ScheduleItem[
     });
 
     return { items, startAt };
-  }, [result, stops, tick]);
+  }, [result, stops]);
 }
 
 function delayStatus(item: ScheduleItem): { text: string; tone: 'ontime' | 'late' | 'early' } | null {
   if (!item.requestedAt) return null;
   const diffMin = Math.round((item.arrivalAt.getTime() - item.requestedAt.getTime()) / 60_000);
-  if (diffMin > 2) return { text: `+${diffMin} min`, tone: 'late' };
-  if (diffMin < -5) return { text: `${-diffMin} min avance`, tone: 'early' };
-  return { text: 'à l\'heure', tone: 'ontime' };
+  if (diffMin > 2) return { text: `${diffMin} min de retard`, tone: 'late' };
+  if (diffMin < -5) return { text: `${-diffMin} min d'avance`, tone: 'early' };
+  return { text: 'À l\'heure', tone: 'ontime' };
 }
 
 const TONE_BG: Record<'ontime' | 'late' | 'early', string> = {
@@ -132,46 +124,50 @@ function Row({
   handle?: React.ReactNode;
 }) {
   const delay = delayStatus(item);
+  const toneBg = delay ? TONE_BG[delay.tone] : TONE_BG.ontime;
+  const toneFg = delay ? TONE_FG[delay.tone] : TONE_FG.ontime;
+
   return (
     <View style={styles.row}>
-      <View style={styles.timelineCol}>
-        <Text style={styles.timeStrong}>{formatTime(item.departureAt, referenceDate)}</Text>
-        <View style={styles.dot} />
-        <View style={styles.line} />
-        <View style={[styles.dot, styles.dotEnd]} />
-        <Text style={styles.timeStrong}>{formatTime(item.arrivalAt, referenceDate)}</Text>
+      <View style={styles.currentBadge}>
+        <Text style={styles.currentBadgeTxt}>{item.currentIdx + 1}</Text>
       </View>
 
       <View style={styles.body}>
-        <View style={styles.bodyHeader}>
-          <View style={styles.currentBadge}>
-            <Text style={styles.currentBadgeTxt}>{item.currentIdx + 1}</Text>
-          </View>
-          {item.displaced ? (
-            <View style={styles.algoHint}>
-              <Text style={styles.algoHintTxt}>algo · #{item.systemIdx + 1}</Text>
-            </View>
-          ) : null}
-          {delay ? (
-            <View style={[styles.statusPill, { backgroundColor: TONE_BG[delay.tone] }]}>
-              <Text style={[styles.statusPillTxt, { color: TONE_FG[delay.tone] }]}>
-                {delay.text}
-              </Text>
-            </View>
-          ) : null}
-        </View>
         <Text style={styles.address} numberOfLines={2}>
           {item.leg.toAddress}
         </Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.meta}>
-            {formatDuration(item.leg.trafficDurationSeconds)} · {formatDistance(item.leg.distanceMeters)}
-          </Text>
-          {!isFirst ? <Text style={styles.metaDim}>+ 3 min sur place</Text> : null}
+
+        <View style={styles.timeGrid}>
+          <View style={styles.timeCell}>
+            <Text style={styles.timeLabel}>Arrivée</Text>
+            <Text style={styles.timeValue}>{formatTime(item.arrivalAt, referenceDate)}</Text>
+          </View>
           {item.requestedAt ? (
-            <Text style={styles.metaDim}>
-              Demandé {formatTime(item.requestedAt, referenceDate)}
+            <View style={styles.timeCell}>
+              <Text style={styles.timeLabel}>Demandée</Text>
+              <Text style={styles.timeValueMuted}>{formatTime(item.requestedAt, referenceDate)}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {delay ? (
+          <View style={[styles.statusPill, { backgroundColor: toneBg }]}>
+            <Text style={[styles.statusPillTxt, { color: toneFg }]}>
+              {delay.tone === 'ontime' ? '✓' : delay.tone === 'late' ? '⚠' : '⏰'} {delay.text}
             </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.travelRow}>
+          <Text style={styles.travelTxt}>
+            {formatDuration(item.leg.trafficDurationSeconds)} · {formatDistance(item.leg.distanceMeters)}
+            {!isFirst ? (
+              <Text style={styles.travelExtra}>  + 3 min remise</Text>
+            ) : null}
+          </Text>
+          {item.displaced ? (
+            <Text style={styles.algoHintInline}>Algo: #{item.systemIdx + 1}</Text>
           ) : null}
         </View>
       </View>
@@ -487,7 +483,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'flex-start',
     gap: space.md,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
@@ -495,64 +491,64 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: space.md,
   },
-  timelineCol: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: 56,
-    paddingVertical: 2,
-  },
-  timeStrong: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.accent,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  dotEnd: { backgroundColor: colors.success },
-  line: {
-    flex: 1,
-    width: 2,
-    backgroundColor: colors.border,
-    marginVertical: 2,
-  },
-  body: { flex: 1, gap: 6, justifyContent: 'center' },
-  bodyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  body: { flex: 1, gap: 10 },
   currentBadge: {
-    minWidth: 28,
-    height: 28,
-    paddingHorizontal: 8,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.dark,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
-  currentBadgeTxt: { color: colors.surface, fontSize: 13, fontWeight: '800' },
-  algoHint: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: '#EFF8FF',
-    borderWidth: 1,
-    borderColor: '#B2DDFF',
+  currentBadgeTxt: { color: colors.surface, fontSize: 14, fontWeight: '800' },
+  address: { fontSize: 15, fontWeight: '700', color: colors.text, lineHeight: 20 },
+  timeGrid: {
+    flexDirection: 'row',
+    gap: space.md,
+    paddingTop: 4,
   },
-  algoHintTxt: { color: colors.accent, fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
+  timeCell: { flex: 1 },
+  timeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  timeValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.3,
+  },
+  timeValueMuted: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.3,
+  },
   statusPill: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 999,
   },
-  statusPillTxt: { fontSize: 11, fontWeight: '800' },
-  address: { fontSize: 15, fontWeight: '700', color: colors.text },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  meta: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  metaDim: { fontSize: 12, color: colors.textFaint, fontWeight: '500' },
+  statusPillTxt: { fontSize: 12, fontWeight: '800' },
+  travelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  travelTxt: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  travelExtra: { fontSize: 11, fontWeight: '500', color: colors.textFaint },
+  algoHintInline: { fontSize: 11, fontWeight: '600', color: colors.accent },
   dragHandle: {
     alignSelf: 'stretch',
     paddingHorizontal: 10,

@@ -18,18 +18,47 @@ const VEHICLE_SPEED_MS: Record<VehicleType, number> = {
 };
 
 const SERVICE_SECONDS = 180;
-const LATE_PENALTY = 3;
-const EARLY_PENALTY = 0.1;
+const LATE_PENALTY = 5;
+const EARLY_PENALTY = 1;
 
-function greedyOrder(
+type OrderItem = { stop: Stop; coord: Coord };
+
+function routeCost(
+  sequence: OrderItem[],
   originCoord: Coord,
-  items: Array<{ stop: Stop; coord: Coord }>,
   vehicle: VehicleType,
   departureAt: Date,
-): Array<{ stop: Stop; coord: Coord }> {
+): number {
+  const speed = VEHICLE_SPEED_MS[vehicle];
+  let cost = 0;
+  let cursor = originCoord;
+  let cursorTime = new Date(departureAt);
+  for (const it of sequence) {
+    const travelS = haversineMeters(cursor, it.coord) / speed;
+    const arrival = new Date(cursorTime.getTime() + travelS * 1000);
+    const target = parseTimeOnDay(departureAt, it.stop.time);
+    cost += travelS;
+    if (target) {
+      const lateS = Math.max(0, (arrival.getTime() - target.getTime()) / 1000);
+      const earlyS = Math.max(0, (target.getTime() - arrival.getTime()) / 1000);
+      cost += LATE_PENALTY * lateS + EARLY_PENALTY * earlyS;
+    }
+    const effectiveArrival = target && arrival < target ? target : arrival;
+    cursorTime = new Date(effectiveArrival.getTime() + SERVICE_SECONDS * 1000);
+    cursor = it.coord;
+  }
+  return cost;
+}
+
+function greedySeed(
+  originCoord: Coord,
+  items: OrderItem[],
+  vehicle: VehicleType,
+  departureAt: Date,
+): OrderItem[] {
   const speed = VEHICLE_SPEED_MS[vehicle];
   const remaining = [...items];
-  const ordered: typeof items = [];
+  const ordered: OrderItem[] = [];
   let cursor = originCoord;
   let cursorTime = new Date(departureAt);
 
@@ -61,6 +90,48 @@ function greedyOrder(
     ordered.push(chosen);
   }
   return ordered;
+}
+
+function localOptimize(
+  initial: OrderItem[],
+  originCoord: Coord,
+  vehicle: VehicleType,
+  departureAt: Date,
+): OrderItem[] {
+  if (initial.length < 2) return initial;
+  let best = [...initial];
+  let bestCost = routeCost(best, originCoord, vehicle, departureAt);
+  let improved = true;
+  let iterations = 0;
+  const MAX_ITER = 30;
+
+  while (improved && iterations < MAX_ITER) {
+    improved = false;
+    iterations++;
+    for (let i = 0; i < best.length - 1; i++) {
+      for (let j = i + 1; j < best.length; j++) {
+        const candidate = [...best];
+        [candidate[i], candidate[j]] = [candidate[j], candidate[i]];
+        const cost = routeCost(candidate, originCoord, vehicle, departureAt);
+        if (cost < bestCost - 0.001) {
+          best = candidate;
+          bestCost = cost;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function greedyOrder(
+  originCoord: Coord,
+  items: OrderItem[],
+  vehicle: VehicleType,
+  departureAt: Date,
+): OrderItem[] {
+  const seed = greedySeed(originCoord, items, vehicle, departureAt);
+  return localOptimize(seed, originCoord, vehicle, departureAt);
 }
 
 type GeocodeResponse = {
