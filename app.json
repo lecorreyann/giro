@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Giro",
+    "slug": "delivery-route-optimization",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pour suggérer des adresses près de vous.",
+        "NSMicrophoneUsageDescription": "Pour dicter les adresses à la voix.",
+        "NSSpeechRecognitionUsageDescription": "Pour convertir votre voix en texte."
+      },
+      "bundleIdentifier": "com.developpement-yannlc.delivery-route-optimization"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#101828"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.developpementyannlc.deliveryrouteoptimization"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pour suggérer des adresses près de vous."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Pour dicter les adresses à la voix.",
+          "speechRecognitionPermission": "Pour convertir votre voix en texte."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#101828"
+        }
+      ]
+    ],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
