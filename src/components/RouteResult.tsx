@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RouteLeg, RouteResult, Stop } from '../types';
 import { colors, radii, space, type as T } from '../theme';
 
@@ -10,6 +10,7 @@ type Props = {
   stops: Stop[];
   draggable?: boolean;
   onReorder?: (newIds: string[]) => void;
+  loading?: boolean;
 };
 
 function formatDuration(seconds: number): string {
@@ -143,12 +144,12 @@ function Row({
 
       <View style={styles.body}>
         <View style={styles.bodyHeader}>
-          <View style={styles.sysBadge}>
-            <Text style={styles.sysBadgeTxt}>#{item.systemIdx + 1}</Text>
+          <View style={styles.currentBadge}>
+            <Text style={styles.currentBadgeTxt}>{item.currentIdx + 1}</Text>
           </View>
           {item.displaced ? (
-            <View style={styles.posBadge}>
-              <Text style={styles.posBadgeTxt}>position {item.currentIdx + 1}</Text>
+            <View style={styles.algoHint}>
+              <Text style={styles.algoHintTxt}>algo · #{item.systemIdx + 1}</Text>
             </View>
           ) : null}
           {delay ? (
@@ -278,34 +279,51 @@ function NativeReorder({
   onReorder: (ids: string[]) => void;
   referenceDate: Date;
 }) {
-  const move = (from: number, to: number) => {
-    if (to < 0 || to >= items.length) return;
-    const next = [...result.orderedStopIds];
-    const [id] = next.splice(from, 1);
-    next.splice(to, 0, id);
-    onReorder(next);
-  };
+  const DraggableFlatList = require('react-native-draggable-flatlist').default;
+  const { ScaleDecorator } = require('react-native-draggable-flatlist');
+
   return (
-    <View style={{ gap: space.sm }}>
-      {items.map((item, idx) => (
-        <Row
-          key={item.stop.id}
-          item={item}
-          isFirst={idx === 0}
-          referenceDate={referenceDate}
-          handle={
-            <View style={styles.handleCol}>
-              <Pressable onPress={() => move(idx, idx - 1)} style={styles.arrow}>
-                <Text style={styles.arrowTxt}>▲</Text>
-              </Pressable>
-              <Pressable onPress={() => move(idx, idx + 1)} style={styles.arrow}>
-                <Text style={styles.arrowTxt}>▼</Text>
-              </Pressable>
-            </View>
-          }
-        />
-      ))}
-    </View>
+    <DraggableFlatList
+      data={items}
+      keyExtractor={(it: ScheduleItem) => it.stop.id}
+      scrollEnabled={false}
+      activationDistance={8}
+      contentContainerStyle={{ gap: space.sm }}
+      onDragEnd={({ data }: { data: ScheduleItem[] }) => {
+        onReorder(data.map((it) => it.stop.id));
+      }}
+      renderItem={({
+        item,
+        drag,
+        isActive,
+        getIndex,
+      }: {
+        item: ScheduleItem;
+        drag: () => void;
+        isActive: boolean;
+        getIndex: () => number | undefined;
+      }) => (
+        <ScaleDecorator>
+          <View style={[isActive && { opacity: 0.8 }]}>
+            <Row
+              item={item}
+              isFirst={(getIndex() ?? 0) === 0}
+              referenceDate={referenceDate}
+              handle={
+                <Pressable
+                  onLongPress={drag}
+                  delayLongPress={120}
+                  style={styles.dragHandle}
+                  hitSlop={8}
+                >
+                  <Text style={styles.dragHandleTxt}>⋮⋮</Text>
+                </Pressable>
+              }
+            />
+          </View>
+        </ScaleDecorator>
+      )}
+    />
   );
 }
 
@@ -330,12 +348,20 @@ function StaticList({
   );
 }
 
-export function RouteResultView({ result, stops, draggable, onReorder }: Props) {
+export function RouteResultView({ result, stops, draggable, onReorder, loading }: Props) {
   const { items, startAt } = useSchedule(result, stops);
   const lastArrival = items.length > 0 ? items[items.length - 1].arrivalAt : startAt;
 
   return (
     <View style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
+          <View style={styles.loadingPill}>
+            <ActivityIndicator color="#FFFFFF" size="small" />
+            <Text style={styles.loadingTxt}>Recalcul en cours…</Text>
+          </View>
+        </View>
+      ) : null}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryKicker}>Tournée</Text>
         <View style={styles.summaryRow}>
@@ -390,7 +416,35 @@ export function RouteResultView({ result, stops, draggable, onReorder }: Props) 
 const styles = StyleSheet.create({
   container: {
     gap: space.md,
+    position: 'relative',
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    borderRadius: radii.lg,
+    zIndex: 100,
+  },
+  loadingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: colors.dark,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  loadingTxt: { color: colors.surface, fontWeight: '700', fontSize: 13 },
   summaryCard: {
     backgroundColor: colors.dark,
     borderRadius: radii.xl,
@@ -470,20 +524,25 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: 6, justifyContent: 'center' },
   bodyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  sysBadge: {
-    paddingVertical: 3,
+  currentBadge: {
+    minWidth: 28,
+    height: 28,
     paddingHorizontal: 8,
-    borderRadius: 999,
+    borderRadius: 14,
     backgroundColor: colors.dark,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sysBadgeTxt: { color: colors.surface, fontSize: 11, fontWeight: '800' },
-  posBadge: {
+  currentBadgeTxt: { color: colors.surface, fontSize: 13, fontWeight: '800' },
+  algoHint: {
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 999,
     backgroundColor: '#EFF8FF',
+    borderWidth: 1,
+    borderColor: '#B2DDFF',
   },
-  posBadgeTxt: { color: colors.accent, fontSize: 11, fontWeight: '800' },
+  algoHintTxt: { color: colors.accent, fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
   statusPill: {
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -494,14 +553,14 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   meta: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
   metaDim: { fontSize: 12, color: colors.textFaint, fontWeight: '500' },
-  handleCol: { justifyContent: 'center', gap: 4 },
-  arrow: {
-    width: 28,
-    height: 28,
+  dragHandle: {
+    alignSelf: 'stretch',
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 6,
+    borderRadius: 8,
+    minWidth: 36,
   },
-  arrowTxt: { color: colors.textMuted, fontSize: 12 },
+  dragHandleTxt: { color: colors.textMuted, fontSize: 20, fontWeight: '700' },
 });

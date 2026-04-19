@@ -90,7 +90,12 @@ export function RoutePlannerScreen() {
     setResult(null);
     setLocked(false);
     setActiveLegIndex(0);
-  }, [vehicle, origin, originCoord, departureTime]);
+  }, [origin, originCoord, departureTime]);
+
+  const resultRef = useRef<RouteResult | null>(null);
+  const canCalcRef = useRef(false);
+  const runCalculationRef = useRef<((preserveOrder: boolean, orderedStops?: Stop[]) => Promise<RouteResult | null>) | null>(null);
+  resultRef.current = result;
 
   useEffect(() => {
     if (skipInvalidateRef.current) {
@@ -109,6 +114,17 @@ export function RoutePlannerScreen() {
     const hasOrigin = effectiveOrigin.length > 0 && Boolean(effectiveOriginCoord);
     return hasOrigin && stops.every((s) => s.address.trim().length > 0);
   }, [effectiveOrigin, effectiveOriginCoord, stops]);
+
+  canCalcRef.current = canCalculate;
+
+  useEffect(() => {
+    if (resultRef.current && canCalcRef.current) {
+      runCalculationRef.current?.(false);
+    } else {
+      setLocked(false);
+      setActiveLegIndex(0);
+    }
+  }, [vehicle]);
 
   const updateStop = (id: string, next: Stop) =>
     setStops((prev) => prev.map((s) => (s.id === id ? next : s)));
@@ -137,10 +153,13 @@ export function RoutePlannerScreen() {
     return updateSuggestion ? reordered.map((s, idx) => ({ ...s, suggestedIndex: idx })) : reordered;
   };
 
-  const runCalculation = async (
+  const runCalculation: (
     preserveOrder: boolean,
     orderedStops?: Stop[],
-  ): Promise<RouteResult | null> => {
+  ) => Promise<RouteResult | null> = async (
+    preserveOrder,
+    orderedStops,
+  ) => {
     let departureAt = buildDepartureDate(departureTime);
     if (departureAt.getTime() < Date.now()) {
       departureAt = roundUpToStep(new Date());
@@ -171,6 +190,8 @@ export function RoutePlannerScreen() {
       setLoading(false);
     }
   };
+
+  runCalculationRef.current = runCalculation;
 
   const onCalculate = async () => {
     if (!canCalculate) {

@@ -226,6 +226,7 @@ function ReviewStep(p: Props) {
         stops={p.stops}
         draggable
         onReorder={p.onReorderResult}
+        loading={p.loading}
       />
     </View>
   );
