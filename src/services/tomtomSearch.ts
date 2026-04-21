@@ -1,3 +1,4 @@
+import { VOICE_LANG, type AppLang } from '../i18n';
 import type { Coord } from '../types';
 
 export type AddressSuggestion = {
@@ -17,13 +18,14 @@ type TomTomSearchResponse = {
 export async function searchAddresses(
   query: string,
   apiKey: string,
+  lang: AppLang,
   bias?: Coord,
 ): Promise<AddressSuggestion[]> {
   if (query.trim().length < 3) return [];
   const params = new URLSearchParams({
     key: apiKey,
     limit: '5',
-    language: 'es-ES',
+    language: VOICE_LANG[lang],
     typeahead: 'true',
   });
   if (bias) {

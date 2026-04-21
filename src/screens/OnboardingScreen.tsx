@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { AddressSearchModal } from '../components/AddressSearchModal';
 import { VEHICLE_LABEL, VehicleIcon } from '../components/VehicleIcon';
+import { APP_LANGS, LANG_FLAG, LANG_LABEL, type AppLang } from '../i18n';
 import { colors, radii, space, type as T } from '../theme';
 import type { Coord, VehicleType } from '../types';
 
@@ -11,33 +12,82 @@ const VEHICLES: VehicleType[] = ['bike', 'escooter', 'scooter', 'car'];
 
 type Props = {
   onComplete: (payload: {
+    lang: AppLang;
     vehicle: VehicleType;
     cityName: string;
     cityCoord: Coord;
   }) => void;
 };
 
+type Step = 1 | 2 | 3;
+
 export function OnboardingScreen({ onComplete }: Props) {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<Step>(1);
+  const [lang, setLang] = useState<AppLang | null>(null);
   const [vehicle, setVehicle] = useState<VehicleType | null>(null);
   const [cityModalOpen, setCityModalOpen] = useState(false);
   const [cityName, setCityName] = useState<string | null>(null);
   const [cityCoord, setCityCoord] = useState<Coord | null>(null);
 
-  const canContinue1 = vehicle !== null;
+  const canContinue1 = lang !== null;
+  const canContinue2 = vehicle !== null;
   const canFinish = cityName !== null && cityCoord !== null;
+
+  const canNext = step === 1 ? canContinue1 : step === 2 ? canContinue2 : canFinish;
+
+  const onNext = () => {
+    if (step === 1 && canContinue1) setStep(2);
+    else if (step === 2 && canContinue2) setStep(3);
+    else if (step === 3 && lang && vehicle && cityName && cityCoord) {
+      onComplete({ lang, vehicle, cityName, cityCoord });
+    }
+  };
+
+  const onBack = () => {
+    if (step === 2) setStep(1);
+    else if (step === 3) setStep(2);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.progressRow}>
-        <View style={[styles.progressDot, styles.progressDotActive]} />
-        <View style={[styles.progressDot, step === 2 && styles.progressDotActive]} />
+        {[1, 2, 3].map((i) => (
+          <View
+            key={i}
+            style={[styles.progressDot, step >= (i as Step) && styles.progressDotActive]}
+          />
+        ))}
       </View>
 
       <View style={styles.content}>
         {step === 1 ? (
           <>
-            <Text style={styles.kicker}>Étape 1 / 2</Text>
+            <Text style={styles.kicker}>1 / 3</Text>
+            <Text style={styles.title}>Langue · Language · Idioma</Text>
+            <Text style={styles.subtitle}>
+              Interface, reconnaissance vocale, navigation.
+            </Text>
+            <View style={styles.langGrid}>
+              {APP_LANGS.map((code) => {
+                const active = lang === code;
+                return (
+                  <Pressable
+                    key={code}
+                    onPress={() => setLang(code)}
+                    style={[styles.langCard, active && styles.langCardActive]}
+                  >
+                    <View style={[styles.langFlagWrap, active && styles.langFlagWrapActive]}>
+                      <Text style={styles.langFlag}>{LANG_FLAG[code]}</Text>
+                    </View>
+                    <Text style={styles.langLabel}>{LANG_LABEL[code]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : step === 2 ? (
+          <>
+            <Text style={styles.kicker}>Étape 2 / 3</Text>
             <Text style={styles.title}>Quel véhicule utilisez-vous ?</Text>
             <Text style={styles.subtitle}>
               On optimisera vos tournées en fonction.
@@ -68,7 +118,7 @@ export function OnboardingScreen({ onComplete }: Props) {
           </>
         ) : (
           <>
-            <Text style={styles.kicker}>Étape 2 / 2</Text>
+            <Text style={styles.kicker}>Étape 3 / 3</Text>
             <Text style={styles.title}>Dans quelle ville ?</Text>
             <Text style={styles.subtitle}>
               Les adresses seront suggérées autour de cette ville.
@@ -94,8 +144,8 @@ export function OnboardingScreen({ onComplete }: Props) {
       </View>
 
       <View style={styles.bottomBar}>
-        {step === 2 ? (
-          <Pressable onPress={() => setStep(1)} style={styles.ctaGhost}>
+        {step > 1 ? (
+          <Pressable onPress={onBack} style={styles.ctaGhost}>
             <Feather name="arrow-left" size={18} color={colors.text} />
             <Text style={styles.ctaGhostTxt}>Retour</Text>
           </Pressable>
@@ -105,19 +155,11 @@ export function OnboardingScreen({ onComplete }: Props) {
           </View>
         )}
         <Pressable
-          disabled={step === 1 ? !canContinue1 : !canFinish}
-          onPress={() => {
-            if (step === 1) setStep(2);
-            else if (vehicle && cityName && cityCoord) {
-              onComplete({ vehicle, cityName, cityCoord });
-            }
-          }}
-          style={[
-            styles.cta,
-            (step === 1 ? !canContinue1 : !canFinish) && styles.ctaDisabled,
-          ]}
+          disabled={!canNext}
+          onPress={onNext}
+          style={[styles.cta, !canNext && styles.ctaDisabled]}
         >
-          <Text style={styles.ctaTxt}>{step === 1 ? 'Continuer' : 'Commencer'}</Text>
+          <Text style={styles.ctaTxt}>{step === 3 ? 'Commencer' : 'Continuer'}</Text>
           <Feather name="arrow-right" size={18} color={colors.surface} />
         </Pressable>
       </View>
@@ -126,6 +168,7 @@ export function OnboardingScreen({ onComplete }: Props) {
         visible={cityModalOpen}
         initialValue={cityName ?? ''}
         title="Ville"
+        lang={lang ?? 'fr'}
         onSelect={(addr, coord) => {
           setCityName(addr);
           setCityCoord(coord);
@@ -161,6 +204,36 @@ const styles = StyleSheet.create({
   kicker: { ...T.caps },
   title: { ...T.display, lineHeight: 34 },
   subtitle: { ...T.small, marginTop: -4, marginBottom: space.lg },
+  langGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.md,
+  },
+  langCard: {
+    width: '47%',
+    padding: space.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  langCardActive: {
+    borderColor: colors.dark,
+    borderWidth: 2,
+  },
+  langFlagWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langFlagWrapActive: { backgroundColor: colors.surfaceMuted },
+  langFlag: { fontSize: 34 },
+  langLabel: { ...T.bodyStrong },
   vehicleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

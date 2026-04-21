@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Coord, Stop } from '../types';
 import { TimeSelect } from './TimeSelect';
 import { AddressAutocomplete } from './AddressAutocomplete';
+import { STRINGS, type AppLang } from '../i18n';
 import { colors, radii, space, type } from '../theme';
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   onRemove: () => void;
   bias?: Coord | null;
   autoOpenAddress?: boolean;
+  lang: AppLang;
 };
 
 export function StopCard({
@@ -20,6 +22,7 @@ export function StopCard({
   onRemove,
   bias,
   autoOpenAddress,
+  lang,
 }: Props) {
   return (
     <View style={styles.card}>
@@ -39,10 +42,11 @@ export function StopCard({
       <AddressAutocomplete
         value={stop.address}
         onChange={(address, coord) => onChange({ ...stop, address, coord })}
-        placeholder="Toucher pour saisir"
+        placeholder={STRINGS[lang].tapToTypeShort}
         bias={bias}
         title={`Arrêt ${index + 1}`}
         autoOpen={autoOpenAddress}
+        lang={lang}
       />
 
       <View style={styles.timeRow}>

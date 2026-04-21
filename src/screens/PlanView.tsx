@@ -15,6 +15,7 @@ import { RouteResultView } from '../components/RouteResult';
 import { Stepper } from '../components/Stepper';
 import { StopCard } from '../components/StopCard';
 import { TimeSelect } from '../components/TimeSelect';
+import { STRINGS, type AppLang } from '../i18n';
 import { colors, radii, space, type as T } from '../theme';
 import type { Coord, RouteResult, Stop, VehicleType } from '../types';
 
@@ -46,6 +47,7 @@ type Props = {
   pendingAddressStopId: string | null;
   clearPendingAddress: () => void;
   onOpenSettings: () => void;
+  lang: AppLang;
 };
 
 export function PlanView(p: Props) {
@@ -171,9 +173,10 @@ function PlanStep(p: Props) {
           <AddressAutocomplete
             value={p.origin}
             onChange={(a, c) => p.setOrigin(a, c)}
-            placeholder={p.userLocation ? 'Ma position' : 'Adresse de départ'}
+            placeholder={p.userLocation ? STRINGS[p.lang].myPosition : STRINGS[p.lang].startAddress}
             bias={p.cityCoord ?? p.userLocation}
-            title="Adresse de départ"
+            title={STRINGS[p.lang].startAddress}
+            lang={p.lang}
           />
           <View style={styles.timeInlineRow}>
             <Text style={styles.fieldLabel}>Heure</Text>
@@ -196,6 +199,7 @@ function PlanStep(p: Props) {
               onRemove={() => p.removeStop(stop.id)}
               bias={p.cityCoord ?? p.userLocation}
               autoOpenAddress={p.pendingAddressStopId === stop.id}
+              lang={p.lang}
             />
           ))}
         </View>

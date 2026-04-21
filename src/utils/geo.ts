@@ -42,6 +42,17 @@ export type PolylineProjection = {
   distanceAlongMeters: number;
 };
 
+export function bearingDeg(from: Coord, to: Coord): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const φ1 = toRad(from.lat);
+  const φ2 = toRad(to.lat);
+  const Δλ = toRad(to.lng - from.lng);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
 export function projectOntoPolyline(p: Coord, pts: Coord[]): PolylineProjection | null {
   if (pts.length < 2) return null;
   let best: PolylineProjection | null = null;

@@ -5,7 +5,7 @@ export async function geocode(address: string): Promise<Coord> {
   const res = await fetch(url, {
     headers: {
       'Accept-Language': 'es',
-      'User-Agent': 'delivery-route-optimization/0.1 (demo)',
+      'User-Agent': 'giro/0.1 (demo)',
     },
   });
   if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);

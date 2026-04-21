@@ -9,6 +9,7 @@ import { calculateRoute } from '../services/routing';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useNavigationProgress } from '../hooks/useNavigationProgress';
 import { useSettings } from '../hooks/useSettings';
+import { VOICE_LANG } from '../i18n';
 import type { Coord, RouteResult, Stop, VehicleType } from '../types';
 
 function roundUpToStep(date: Date, stepMin = 5): Date {
@@ -55,7 +56,7 @@ function buildDepartureDate(hhmm: string): Date {
 
 export function RoutePlannerScreen() {
   const userLocation = useUserLocation();
-  const { settings, update: updateSettings, loaded: settingsLoaded } = useSettings();
+  const { settings, update: updateSettings, reset: resetSettings, loaded: settingsLoaded } = useSettings();
   const now = useMemo(() => new Date(), []);
   const minNow = useMemo(() => roundUpToStep(now), [now]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -175,6 +176,7 @@ export function RoutePlannerScreen() {
         originCoord: effectiveOriginCoord,
         stops: sourceStops,
         preserveOrder,
+        language: VOICE_LANG[settings.lang],
       };
       const r = await calculateRoute(plan);
       const nextStops = applyOrderedStops(r, sourceStops, !preserveOrder);
@@ -247,6 +249,7 @@ export function RoutePlannerScreen() {
         originCoord: userLocation,
         stops: remainingStops,
         preserveOrder: true,
+        language: VOICE_LANG[settings.lang],
       };
       const r = await calculateRoute(plan);
       skipInvalidateRef.current = true;
@@ -280,7 +283,7 @@ export function RoutePlannerScreen() {
     if (lastSpokenRef.current === key) return;
     lastSpokenRef.current = key;
     Speech.stop();
-    Speech.speak(inst.text || inst.maneuver || '', { language: 'es-ES', rate: 1.0 });
+    Speech.speak(inst.text || inst.maneuver || '', { language: VOICE_LANG[settings.lang], rate: 1.0 });
   }, [locked, voiceOn, result, activeLegIndex, currentInstructionIdx]);
 
   useEffect(() => {
@@ -290,8 +293,8 @@ export function RoutePlannerScreen() {
   if (settingsLoaded && !settings.onboarded) {
     return (
       <OnboardingScreen
-        onComplete={({ vehicle: v, cityName, cityCoord }) => {
-          updateSettings({ onboarded: true, vehicle: v, cityName, cityCoord });
+        onComplete={({ lang, vehicle: v, cityName, cityCoord }) => {
+          updateSettings({ onboarded: true, lang, vehicle: v, cityName, cityCoord });
           setVehicleState(v);
         }}
       />
@@ -305,6 +308,10 @@ export function RoutePlannerScreen() {
         onUpdate={(patch) => {
           updateSettings(patch);
           if (patch.vehicle) setVehicleState(patch.vehicle);
+        }}
+        onReset={() => {
+          resetSettings();
+          setSettingsOpen(false);
         }}
         onClose={() => setSettingsOpen(false)}
       />
@@ -364,6 +371,7 @@ export function RoutePlannerScreen() {
       activeLegIndex={activeLegIndex}
       pendingAddressStopId={pendingAddressStopId}
       clearPendingAddress={() => setPendingAddressStopId(null)}
+      lang={settings.lang}
     />
   );
 }

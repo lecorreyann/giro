@@ -13,6 +13,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { Coord } from '../types';
 import { searchAddresses, type AddressSuggestion } from '../services/tomtomSearch';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { STRINGS, VOICE_LANG, type AppLang } from '../i18n';
 import { colors, radii, space, type as T } from '../theme';
 
 const TOMTOM_KEY = process.env.EXPO_PUBLIC_TOMTOM_API_KEY;
@@ -22,6 +23,7 @@ type Props = {
   initialValue: string;
   bias?: Coord | null;
   title?: string;
+  lang: AppLang;
   onSelect: (address: string, coord: Coord) => void;
   onClose: () => void;
 };
@@ -31,12 +33,14 @@ export function AddressSearchModal({
   initialValue,
   bias,
   title = 'Adresse',
+  lang,
   onSelect,
   onClose,
 }: Props) {
   const [query, setQuery] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
-  const voice = useSpeechRecognition('es-ES');
+  const voice = useSpeechRecognition(VOICE_LANG[lang]);
+  const s = STRINGS[lang];
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedRef = useRef(false);
   const insets = useSafeAreaInsets();
@@ -58,13 +62,13 @@ export function AddressSearchModal({
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const r = await searchAddresses(query, TOMTOM_KEY, bias ?? undefined);
+      const r = await searchAddresses(query, TOMTOM_KEY, lang, bias ?? undefined);
       setSuggestions(r);
     }, 120);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, visible, bias]);
+  }, [query, visible, bias, lang]);
 
   const onMicPress = () => {
     if (voice.isListening) voice.stop();
@@ -98,12 +102,22 @@ export function AddressSearchModal({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Calle, avenida, numéro..."
+            placeholder={s.addressPlaceholder}
             placeholderTextColor={colors.textFaint}
             style={styles.input}
             autoFocus
             autoCapitalize="words"
           />
+          {query.length > 0 ? (
+            <Pressable
+              onPress={() => setQuery('')}
+              style={styles.clearBtn}
+              hitSlop={10}
+              accessibilityLabel="Effacer"
+            >
+              <Feather name="x" size={16} color={colors.surface} />
+            </Pressable>
+          ) : null}
           {voice.supported ? (
             <Pressable
               onPress={onMicPress}
@@ -122,7 +136,7 @@ export function AddressSearchModal({
         {voice.isListening ? (
           <View style={styles.listeningPill}>
             <View style={styles.listeningDot} />
-            <Text style={styles.listeningLabel}>À l'écoute…</Text>
+            <Text style={styles.listeningLabel}>{s.listening}</Text>
           </View>
         ) : null}
 
@@ -134,7 +148,7 @@ export function AddressSearchModal({
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              {query.trim().length >= 3 ? 'Aucune suggestion' : 'Tapez ou dictez au moins 3 caractères'}
+              {query.trim().length >= 3 ? s.noSuggestion : s.searchHint}
             </Text>
           }
           renderItem={({ item }) => (
@@ -174,6 +188,17 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
   },
   inputIcon: { position: 'absolute', left: space.lg + 14, zIndex: 1 },
+  clearBtn: {
+    position: 'absolute',
+    right: space.lg + 48 + space.sm + 14,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.textFaint,
+    zIndex: 1,
+  },
   input: {
     flex: 1,
     borderWidth: 1,

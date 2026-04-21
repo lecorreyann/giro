@@ -21,7 +21,7 @@ const SERVICE_SECONDS = 180;
 const LATE_PENALTY = 5;
 const EARLY_PENALTY = 1;
 
-type OrderItem = { stop: Stop; coord: Coord };
+export type OrderItem = { stop: Stop; coord: Coord };
 
 function routeCost(
   sequence: OrderItem[],
@@ -124,7 +124,7 @@ function localOptimize(
   return best;
 }
 
-function greedyOrder(
+export function greedyOrder(
   originCoord: Coord,
   items: OrderItem[],
   vehicle: VehicleType,
@@ -138,7 +138,7 @@ type GeocodeResponse = {
   results: Array<{ position: { lat: number; lon: number } }>;
 };
 
-async function tomtomGeocode(address: string, apiKey: string): Promise<Coord> {
+export async function tomtomGeocode(address: string, apiKey: string): Promise<Coord> {
   const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(address)}.json?limit=1&key=${apiKey}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`TomTom geocode HTTP ${res.status}`);
@@ -204,7 +204,7 @@ export async function fetchTomTomRoute(
     routeType: 'fastest',
     departAt: toIso(plan.departureAt),
     instructionsType: 'text',
-    language: 'es-ES',
+    language: plan.language ?? 'fr-FR',
   });
 
   const url = `https://api.tomtom.com/routing/1/calculateRoute/${locPath}/json?${params.toString()}`;

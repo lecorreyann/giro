@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import MapView, {
   Marker,
   Polyline,
@@ -7,8 +7,12 @@ import MapView, {
   type Camera,
   type Region,
 } from 'react-native-maps';
+import Feather from '@expo/vector-icons/Feather';
+import Svg, { Defs, Polygon, RadialGradient, Stop as GradStop } from 'react-native-svg';
+import { colors } from '../theme';
+import { useDeviceHeading } from '../hooks/useDeviceHeading';
 import type { Coord, RouteResult, Stop } from '../types';
-import type { PolylineProjection } from '../utils/geo';
+import { bearingDeg, type PolylineProjection } from '../utils/geo';
 
 type Props = {
   userLocation: Coord | null;
@@ -18,6 +22,7 @@ type Props = {
   fullscreen?: boolean;
   follow?: boolean;
   progress?: PolylineProjection | null;
+  bottomInset?: number;
 };
 
 function fitRegion(points: Coord[]): Region | null {
@@ -54,11 +59,14 @@ export function RouteMap({
   fullscreen,
   follow,
   progress,
+  bottomInset = 16,
 }: Props) {
   const mapRef = useRef<MapView>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [mapHeading, setMapHeading] = useState(0);
   const panTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraInitRef = useRef(false);
+  const deviceHeading = useDeviceHeading(Boolean(userLocation));
 
   useEffect(() => {
     if (!follow) cameraInitRef.current = false;
@@ -74,11 +82,30 @@ export function RouteMap({
   const recenter = () => {
     if (panTimerRef.current) clearTimeout(panTimerRef.current);
     setIsPaused(false);
-    if (userLocation) applyInitialCamera(userLocation);
+    if (!userLocation || !mapRef.current) return;
+    const heading = deviceHeading ?? headingForLeg(userLocation) ?? 0;
+    mapRef.current.animateCamera(
+      {
+        center: { latitude: userLocation.lat, longitude: userLocation.lng },
+        heading,
+      },
+      { duration: 400 },
+    );
   };
 
   useEffect(() => () => {
     if (panTimerRef.current) clearTimeout(panTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      mapRef.current?.getCamera().then((cam) => {
+        if (typeof cam.heading === 'number') {
+          setMapHeading((prev) => (Math.abs(prev - cam.heading) > 0.5 ? cam.heading : prev));
+        }
+      }).catch(() => {});
+    }, 200);
+    return () => clearInterval(id);
   }, []);
 
   const allPoints = useMemo<Coord[]>(() => {
@@ -91,6 +118,24 @@ export function RouteMap({
     }
     return pts;
   }, [userLocation, result]);
+
+  const headingForLeg = (fromLoc?: Coord | null): number | undefined => {
+    if (!result) return undefined;
+    const leg = result.legs[activeLegIndex];
+    if (!leg || leg.geometry.length < 2) return undefined;
+    if (progress) {
+      const start = progress.projection;
+      const next = leg.geometry[Math.min(progress.segmentIndex + 1, leg.geometry.length - 1)];
+      if (next && (start.lat !== next.lat || start.lng !== next.lng)) {
+        return bearingDeg(start, next);
+      }
+    }
+    if (fromLoc) {
+      const next = leg.geometry[1];
+      if (next) return bearingDeg(fromLoc, next);
+    }
+    return bearingDeg(leg.geometry[0], leg.geometry[1]);
+  };
 
   const applyInitialCamera = (loc: Coord) => {
     if (!mapRef.current) return;
@@ -105,10 +150,12 @@ export function RouteMap({
       400,
     );
     setTimeout(() => {
+      const heading = deviceHeading ?? headingForLeg(loc) ?? 0;
       mapRef.current?.animateCamera(
         {
           center: { latitude: loc.lat, longitude: loc.lng },
           pitch: PITCH_DEG,
+          heading,
         },
         { duration: 200 },
       );
@@ -116,26 +163,27 @@ export function RouteMap({
   };
 
   useEffect(() => {
-    if (follow && userLocation && mapRef.current) {
+    if (!mapRef.current) return;
+    if (follow && userLocation) {
       if (isPaused) return;
       if (!cameraInitRef.current) {
         applyInitialCamera(userLocation);
         cameraInitRef.current = true;
-      } else {
-        mapRef.current.animateCamera(
-          {
-            center: { latitude: userLocation.lat, longitude: userLocation.lng },
-          },
-          { duration: 400 },
-        );
+        return;
       }
+      const heading = deviceHeading ?? headingForLeg(userLocation) ?? 0;
+      mapRef.current.animateCamera(
+        {
+          center: { latitude: userLocation.lat, longitude: userLocation.lng },
+          heading,
+        },
+        { duration: 400 },
+      );
       return;
     }
     const region = fitRegion(allPoints);
-    if (region && mapRef.current) {
-      mapRef.current.animateToRegion(region, 500);
-    }
-  }, [allPoints, follow, userLocation, isPaused]);
+    if (region) mapRef.current.animateToRegion(region, 500);
+  }, [allPoints, follow, userLocation, isPaused, progress, activeLegIndex, deviceHeading]);
 
   const initialRegion: Region = fitRegion(allPoints) ?? {
     latitude: userLocation?.lat ?? 39.47,
@@ -150,7 +198,7 @@ export function RouteMap({
           center: { latitude: userLocation.lat, longitude: userLocation.lng },
           zoom: ZOOM_LEVEL,
           pitch: PITCH_DEG,
-          heading: 0,
+          heading: headingForLeg(userLocation) ?? 0,
           altitude: 0,
         }
       : undefined;
@@ -177,8 +225,9 @@ export function RouteMap({
         style={StyleSheet.absoluteFill}
         initialRegion={initialCamera ? undefined : initialRegion}
         initialCamera={initialCamera}
-        showsUserLocation
+        showsUserLocation={false}
         showsMyLocationButton={!follow}
+        showsCompass={false}
         toolbarEnabled={false}
         onPanDrag={pauseFollow}
         onRegionChange={(_region, details) => {
@@ -230,10 +279,64 @@ export function RouteMap({
             />
           );
         })}
+        {userLocation && deviceHeading !== null ? (
+          <Marker
+            coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            zIndex={500}
+          >
+            <View
+              style={{
+                width: 100,
+                height: 160,
+                transform: [
+                  { rotate: `${((deviceHeading - mapHeading) % 360 + 360) % 360}deg` },
+                ],
+              }}
+            >
+              <Svg width={100} height={160} viewBox="0 0 100 160">
+                <Defs>
+                  <RadialGradient
+                    id="headingCone"
+                    cx="50"
+                    cy="80"
+                    r="80"
+                    fx="50"
+                    fy="80"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <GradStop offset="0" stopColor="#4285F4" stopOpacity="0" />
+                    <GradStop offset="0.15" stopColor="#4285F4" stopOpacity="0.55" />
+                    <GradStop offset="0.6" stopColor="#4285F4" stopOpacity="0.25" />
+                    <GradStop offset="1" stopColor="#4285F4" stopOpacity="0" />
+                  </RadialGradient>
+                </Defs>
+                <Polygon points="2,6 98,6 50,80" fill="url(#headingCone)" />
+              </Svg>
+            </View>
+          </Marker>
+        ) : null}
+        {userLocation ? (
+          <Marker
+            coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+            zIndex={600}
+          >
+            <View style={styles.userDotOuter}>
+              <View style={styles.userDotInner} />
+            </View>
+          </Marker>
+        ) : null}
       </MapView>
       {follow && isPaused ? (
-        <Pressable onPress={recenter} style={styles.recenterBtn}>
-          <Text style={styles.recenterTxt}>📍 Recentrer</Text>
+        <Pressable
+          onPress={recenter}
+          style={[styles.recenterBtn, { bottom: bottomInset + 12 }]}
+          hitSlop={8}
+          accessibilityLabel="Recentrer"
+        >
+          <Feather name="navigation" size={22} color={colors.text} />
         </Pressable>
       ) : null}
     </View>
@@ -255,20 +358,41 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     borderWidth: 0,
   },
+  userDotOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  },
+  userDotInner: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#4285F4',
+  },
   recenterBtn: {
     position: 'absolute',
     right: 16,
-    bottom: 260,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 28,
-    backgroundColor: '#1570EF',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
     zIndex: 1000,
   },
-  recenterTxt: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 });

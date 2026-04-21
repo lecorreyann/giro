@@ -2,8 +2,16 @@ import type { RoutePlan, RouteResult, RouteLeg, VehicleType } from '../types';
 import { geocode } from './nominatim';
 import { osrmOptimizedTrip, type OsrmProfile } from './osrm';
 import { fetchTomTomRoute } from './tomtom';
+import { fetchValhallaRoute } from './valhalla';
 
 const TOMTOM_KEY = process.env.EXPO_PUBLIC_TOMTOM_API_KEY;
+
+const USE_VALHALLA_FOR: Record<VehicleType, boolean> = {
+  bike: true,
+  escooter: true,
+  scooter: false,
+  car: false,
+};
 
 const STOP_SERVICE_SECONDS = 180;
 
@@ -42,6 +50,15 @@ function parseTimeOnDay(base: Date, hhmm: string): Date | null {
 export async function calculateRoute(plan: RoutePlan): Promise<RouteResult> {
   if (plan.stops.length === 0) {
     throw new Error('Aucun arrêt à router');
+  }
+
+  if (USE_VALHALLA_FOR[plan.vehicle]) {
+    try {
+      return await fetchValhallaRoute(plan);
+    } catch (e) {
+      if (!TOMTOM_KEY) throw e;
+      return fetchTomTomRoute(plan, TOMTOM_KEY);
+    }
   }
 
   if (TOMTOM_KEY) {

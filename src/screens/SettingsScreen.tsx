@@ -1,22 +1,37 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { AddressSearchModal } from '../components/AddressSearchModal';
+import { LangPickerModal } from '../components/LangPickerModal';
 import { VehiclePickerModal } from '../components/VehiclePickerModal';
 import { VEHICLE_LABEL, VehicleIcon } from '../components/VehicleIcon';
+import { LANG_FLAG, LANG_LABEL } from '../i18n';
 import { colors, radii, space, type as T } from '../theme';
 import type { Settings } from '../hooks/useSettings';
 
 type Props = {
   settings: Settings;
   onUpdate: (patch: Partial<Settings>) => void;
+  onReset: () => void;
   onClose: () => void;
 };
 
-export function SettingsScreen({ settings, onUpdate, onClose }: Props) {
+export function SettingsScreen({ settings, onUpdate, onReset, onClose }: Props) {
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+
+  const confirmReset = () => {
+    Alert.alert(
+      'Réinitialiser l’application ?',
+      'Vos préférences seront effacées et l’onboarding sera réaffiché.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Réinitialiser', onPress: onReset },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -30,6 +45,12 @@ export function SettingsScreen({ settings, onUpdate, onClose }: Props) {
 
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.xl }}>
         <Section title="Préférences">
+          <Row
+            icon={<Text style={styles.flagIcon}>{LANG_FLAG[settings.lang]}</Text>}
+            label="Langue"
+            value={LANG_LABEL[settings.lang]}
+            onPress={() => setLangOpen(true)}
+          />
           <Row
             icon={<VehicleIcon type={settings.vehicle} size={20} color={colors.text} />}
             label="Véhicule"
@@ -51,8 +72,23 @@ export function SettingsScreen({ settings, onUpdate, onClose }: Props) {
             value="0.1.0"
           />
         </Section>
+
+        <Section title="Compte">
+          <Row
+            icon={<Feather name="refresh-ccw" size={20} color={colors.text} />}
+            label="Réinitialiser l’application"
+            value="Efface les préférences et réaffiche l’onboarding"
+            onPress={confirmReset}
+          />
+        </Section>
       </ScrollView>
 
+      <LangPickerModal
+        visible={langOpen}
+        value={settings.lang}
+        onSelect={(v) => onUpdate({ lang: v })}
+        onClose={() => setLangOpen(false)}
+      />
       <VehiclePickerModal
         visible={vehicleOpen}
         value={settings.vehicle}
@@ -63,6 +99,7 @@ export function SettingsScreen({ settings, onUpdate, onClose }: Props) {
         visible={cityOpen}
         initialValue={settings.cityName ?? ''}
         title="Ville"
+        lang={settings.lang}
         onSelect={(name, coord) => {
           onUpdate({ cityName: name, cityCoord: coord });
           setCityOpen(false);
@@ -148,6 +185,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceMuted,
   },
+  rowIconDanger: {
+    backgroundColor: '#FEE4E2',
+  },
+  flagIcon: { fontSize: 20 },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: space.lg,
+    marginTop: space.md,
+  },
+  clearBtnTxt: { ...T.small, fontWeight: '600' },
   rowLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   rowValue: { ...T.bodyStrong, marginTop: 2 },
 });

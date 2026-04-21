@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Coord } from '../types';
 import { AddressSearchModal } from './AddressSearchModal';
+import { STRINGS, type AppLang } from '../i18n';
 import { colors, radii } from '../theme';
 
 type Props = {
@@ -11,16 +12,19 @@ type Props = {
   bias?: Coord | null;
   title?: string;
   autoOpen?: boolean;
+  lang: AppLang;
 };
 
 export function AddressAutocomplete({
   value,
   onChange,
-  placeholder = 'Toucher pour saisir une adresse',
+  placeholder,
   bias,
   title,
   autoOpen,
+  lang,
 }: Props) {
+  const ph = placeholder ?? STRINGS[lang].tapToType;
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -35,7 +39,7 @@ export function AddressAutocomplete({
           numberOfLines={1}
           ellipsizeMode="tail"
         >
-          {value || placeholder}
+          {value || ph}
         </Text>
         <Text style={styles.chev}>›</Text>
       </Pressable>
@@ -44,6 +48,7 @@ export function AddressAutocomplete({
         initialValue={value}
         bias={bias}
         title={title}
+        lang={lang}
         onSelect={(addr, coord) => {
           onChange(addr, coord);
           setOpen(false);

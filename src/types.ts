@@ -17,6 +17,7 @@ export type RoutePlan = {
   originCoord?: Coord;
   stops: Stop[];
   preserveOrder?: boolean;
+  language?: string;
 };
 
 export type TurnInstruction = {

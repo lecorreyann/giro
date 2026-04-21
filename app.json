@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Giro",
-    "slug": "delivery-route-optimization",
-    "version": "0.1.0",
+    "slug": "giro",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -16,7 +16,7 @@
         "NSMicrophoneUsageDescription": "Pour dicter les adresses à la voix.",
         "NSSpeechRecognitionUsageDescription": "Pour convertir votre voix en texte."
       },
-      "bundleIdentifier": "com.developpement-yannlc.delivery-route-optimization"
+      "bundleIdentifier": "com.developpement-yannlc.giro"
     },
     "android": {
       "adaptiveIcon": {
@@ -35,7 +35,7 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.developpementyannlc.deliveryrouteoptimization"
+      "package": "com.developpementyannlc.giro"
     },
     "plugins": [
       [

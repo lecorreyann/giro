@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { AppLang } from '../i18n';
 import type { Coord, VehicleType } from '../types';
 
 const KEY = 'app.settings.v1';
 
 export type Settings = {
   onboarded: boolean;
+  lang: AppLang;
   vehicle: VehicleType;
   cityName: string | null;
   cityCoord: Coord | null;
-  voiceLang: string;
 };
 
 const DEFAULT: Settings = {
   onboarded: false,
+  lang: 'fr',
   vehicle: 'scooter',
   cityName: null,
   cityCoord: null,
-  voiceLang: 'es-ES',
 };
 
 export function useSettings() {
