@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { AddressSearchModal } from '../components/AddressSearchModal';
-import { VEHICLE_LABEL, VehicleIcon } from '../components/VehicleIcon';
-import { APP_LANGS, LANG_FLAG, LANG_LABEL, type AppLang } from '../i18n';
+import { VehicleIcon } from '../components/VehicleIcon';
+import { APP_LANGS, LANG_FLAG, LANG_LABEL, STRINGS, VEHICLE_LABELS, type AppLang } from '../i18n';
 import { colors, radii, space, type as T } from '../theme';
 import type { Coord, VehicleType } from '../types';
+
+const FALLBACK_LANG: AppLang = 'en';
 
 const VEHICLES: VehicleType[] = ['bike', 'escooter', 'scooter', 'car'];
 
@@ -63,9 +65,9 @@ export function OnboardingScreen({ onComplete }: Props) {
         {step === 1 ? (
           <>
             <Text style={styles.kicker}>1 / 3</Text>
-            <Text style={styles.title}>Langue · Language · Idioma</Text>
+            <Text style={styles.title}>{STRINGS[lang ?? FALLBACK_LANG].languageQuestion}</Text>
             <Text style={styles.subtitle}>
-              Interface, reconnaissance vocale, navigation.
+              {STRINGS[lang ?? FALLBACK_LANG].languageSubtitle}
             </Text>
             <View style={styles.langGrid}>
               {APP_LANGS.map((code) => {
@@ -87,10 +89,10 @@ export function OnboardingScreen({ onComplete }: Props) {
           </>
         ) : step === 2 ? (
           <>
-            <Text style={styles.kicker}>Étape 2 / 3</Text>
-            <Text style={styles.title}>Quel véhicule utilisez-vous ?</Text>
+            <Text style={styles.kicker}>2 / 3</Text>
+            <Text style={styles.title}>{STRINGS[lang ?? FALLBACK_LANG].vehicleQuestion}</Text>
             <Text style={styles.subtitle}>
-              On optimisera vos tournées en fonction.
+              {STRINGS[lang ?? FALLBACK_LANG].vehicleSubtitle}
             </Text>
             <View style={styles.vehicleGrid}>
               {VEHICLES.map((v) => {
@@ -109,7 +111,7 @@ export function OnboardingScreen({ onComplete }: Props) {
                       />
                     </View>
                     <Text style={[styles.vehicleLabel, active && styles.vehicleLabelActive]}>
-                      {VEHICLE_LABEL[v]}
+                      {VEHICLE_LABELS[lang ?? FALLBACK_LANG][v]}
                     </Text>
                   </Pressable>
                 );
@@ -118,10 +120,10 @@ export function OnboardingScreen({ onComplete }: Props) {
           </>
         ) : (
           <>
-            <Text style={styles.kicker}>Étape 3 / 3</Text>
-            <Text style={styles.title}>Dans quelle ville ?</Text>
+            <Text style={styles.kicker}>3 / 3</Text>
+            <Text style={styles.title}>{STRINGS[lang ?? FALLBACK_LANG].cityQuestion}</Text>
             <Text style={styles.subtitle}>
-              Les adresses seront suggérées autour de cette ville.
+              {STRINGS[lang ?? FALLBACK_LANG].citySubtitle}
             </Text>
             <Pressable
               onPress={() => setCityModalOpen(true)}
@@ -135,7 +137,7 @@ export function OnboardingScreen({ onComplete }: Props) {
                 ]}
                 numberOfLines={1}
               >
-                {cityName || 'Choisir une ville'}
+                {cityName || STRINGS[lang ?? FALLBACK_LANG].cityChoose}
               </Text>
               <Feather name="chevron-right" size={20} color={colors.textFaint} />
             </Pressable>
@@ -147,11 +149,11 @@ export function OnboardingScreen({ onComplete }: Props) {
         {step > 1 ? (
           <Pressable onPress={onBack} style={styles.ctaGhost}>
             <Feather name="arrow-left" size={18} color={colors.text} />
-            <Text style={styles.ctaGhostTxt}>Retour</Text>
+            <Text style={styles.ctaGhostTxt}>{STRINGS[lang ?? 'en'].back}</Text>
           </Pressable>
         ) : (
           <View style={styles.ctaGhost}>
-            <Text style={styles.ctaGhostTxt}>Bienvenue 👋</Text>
+            <Text style={styles.ctaGhostTxt}>{STRINGS[lang ?? 'en'].welcome}</Text>
           </View>
         )}
         <Pressable
@@ -159,7 +161,9 @@ export function OnboardingScreen({ onComplete }: Props) {
           onPress={onNext}
           style={[styles.cta, !canNext && styles.ctaDisabled]}
         >
-          <Text style={styles.ctaTxt}>{step === 3 ? 'Commencer' : 'Continuer'}</Text>
+          <Text style={styles.ctaTxt}>
+            {step === 3 ? STRINGS[lang ?? 'en'].start : STRINGS[lang ?? 'en'].continue}
+          </Text>
           <Feather name="arrow-right" size={18} color={colors.surface} />
         </Pressable>
       </View>
@@ -167,7 +171,7 @@ export function OnboardingScreen({ onComplete }: Props) {
       <AddressSearchModal
         visible={cityModalOpen}
         initialValue={cityName ?? ''}
-        title="Ville"
+        title={STRINGS[lang ?? FALLBACK_LANG].cityTitle}
         lang={lang ?? 'fr'}
         onSelect={(addr, coord) => {
           setCityName(addr);

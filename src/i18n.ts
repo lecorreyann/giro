@@ -1,3 +1,5 @@
+import type { VehicleType } from './types';
+
 export type AppLang = 'fr' | 'es' | 'en';
 
 export const APP_LANGS: AppLang[] = ['fr', 'es', 'en'];
@@ -28,7 +30,19 @@ type StringKey =
   | 'searchHint'
   | 'noSuggestion'
   | 'listening'
-  | 'myPosition';
+  | 'myPosition'
+  | 'continue'
+  | 'back'
+  | 'start'
+  | 'welcome'
+  | 'vehicleQuestion'
+  | 'vehicleSubtitle'
+  | 'cityQuestion'
+  | 'citySubtitle'
+  | 'cityChoose'
+  | 'cityTitle'
+  | 'languageQuestion'
+  | 'languageSubtitle';
 
 export const STRINGS: Record<AppLang, Record<StringKey, string>> = {
   fr: {
@@ -40,6 +54,18 @@ export const STRINGS: Record<AppLang, Record<StringKey, string>> = {
     noSuggestion: 'Aucune suggestion',
     listening: 'À l’écoute…',
     myPosition: 'Ma position',
+    continue: 'Continuer',
+    back: 'Retour',
+    start: 'Commencer',
+    welcome: 'Bienvenue 👋',
+    vehicleQuestion: 'Quel véhicule utilisez-vous ?',
+    vehicleSubtitle: 'On optimisera vos tournées en fonction.',
+    cityQuestion: 'Dans quelle ville ?',
+    citySubtitle: 'Les adresses seront suggérées autour de cette ville.',
+    cityChoose: 'Choisir une ville',
+    cityTitle: 'Ville',
+    languageQuestion: 'Choisissez votre langue',
+    languageSubtitle: 'Interface, voix et navigation.',
   },
   es: {
     addressPlaceholder: 'Calle, avenida, número…',
@@ -50,6 +76,18 @@ export const STRINGS: Record<AppLang, Record<StringKey, string>> = {
     noSuggestion: 'Sin sugerencias',
     listening: 'Escuchando…',
     myPosition: 'Mi posición',
+    continue: 'Continuar',
+    back: 'Volver',
+    start: 'Empezar',
+    welcome: 'Bienvenido 👋',
+    vehicleQuestion: '¿Qué vehículo usas?',
+    vehicleSubtitle: 'Optimizaremos tus rutas en función.',
+    cityQuestion: '¿En qué ciudad?',
+    citySubtitle: 'Las direcciones se sugerirán cerca de esta ciudad.',
+    cityChoose: 'Elegir una ciudad',
+    cityTitle: 'Ciudad',
+    languageQuestion: 'Elige tu idioma',
+    languageSubtitle: 'Interfaz, voz y navegación.',
   },
   en: {
     addressPlaceholder: 'Street, avenue, number…',
@@ -60,7 +98,25 @@ export const STRINGS: Record<AppLang, Record<StringKey, string>> = {
     noSuggestion: 'No suggestions',
     listening: 'Listening…',
     myPosition: 'My location',
+    continue: 'Continue',
+    back: 'Back',
+    start: 'Start',
+    welcome: 'Welcome 👋',
+    vehicleQuestion: 'Which vehicle do you use?',
+    vehicleSubtitle: 'We’ll optimize your routes accordingly.',
+    cityQuestion: 'Which city?',
+    citySubtitle: 'Addresses will be suggested around this city.',
+    cityChoose: 'Choose a city',
+    cityTitle: 'City',
+    languageQuestion: 'Choose your language',
+    languageSubtitle: 'Interface, voice, and navigation.',
   },
+};
+
+export const VEHICLE_LABELS: Record<AppLang, Record<VehicleType, string>> = {
+  fr: { bike: 'Vélo', escooter: 'Trottinette', scooter: 'Scooter', car: 'Voiture' },
+  es: { bike: 'Bici', escooter: 'Patinete', scooter: 'Scooter', car: 'Coche' },
+  en: { bike: 'Bike', escooter: 'E-scooter', scooter: 'Scooter', car: 'Car' },
 };
 
 export function t(lang: AppLang, key: StringKey): string {
